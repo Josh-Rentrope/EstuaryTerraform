@@ -10,6 +10,21 @@ resource "aws_iam_access_key" "estuary" {
   user = aws_iam_user.estuary.name
 }
 
+# IAM group for Estuary users.
+resource "aws_iam_group" "estuary" {
+  name = "${var.project_name}-group"
+}
+
+# Add the Estuary user to the group.
+resource "aws_iam_group_membership" "estuary" {
+  name = "${var.project_name}-group-membership"
+
+  users = [
+    aws_iam_user.estuary.name,
+  ]
+  group = aws_iam_group.estuary.name
+}
+
 # IAM role that Estuary will assume
 resource "aws_iam_role" "estuary" {
   name = "${var.project_name}-role"
@@ -30,9 +45,8 @@ resource "aws_iam_role" "estuary" {
 }
 
 # --- S3 Permissions ---
-# This policy grants read/write access to all S3 buckets in the account.
-# For better security, you can restrict this to specific bucket ARNs.
-# Example: "arn:aws:s3:::your-bucket-name", "arn:aws:s3:::your-bucket-name/*"
+# This policy grants read/write access to the specific S3 bucket created for Estuary.
+# This follows the principle of least privilege.
 data "aws_iam_policy_document" "s3_read_write" {
   statement {
     sid    = "S3ReadWriteAccess"
@@ -45,8 +59,8 @@ data "aws_iam_policy_document" "s3_read_write" {
       "s3:GetObjectVersion"
     ]
     resources = [
-      "arn:aws:s3:::*",      # For bucket-level operations
-      "arn:aws:s3:::*/*"    # For object-level operations
+      aws_s3_bucket.data_drop.arn,      # For bucket-level operations (e.g., ListBucket)
+      "${aws_s3_bucket.data_drop.arn}/*" # For object-level operations (e.g., GetObject, PutObject)
     ]
   }
 }
@@ -59,6 +73,12 @@ resource "aws_iam_policy" "s3_read_write" {
 
 resource "aws_iam_role_policy_attachment" "s3_read_write" {
   role       = aws_iam_role.estuary.name
+  policy_arn = aws_iam_policy.s3_read_write.arn
+}
+
+# Attach the S3 policy to the group as well for clear permission management.
+resource "aws_iam_group_policy_attachment" "s3_read_write" {
+  group      = aws_iam_group.estuary.name
   policy_arn = aws_iam_policy.s3_read_write.arn
 }
 

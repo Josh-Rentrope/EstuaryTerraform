@@ -16,3 +16,8 @@ output "estuary_iam_user_secret_access_key" {
   value       = aws_iam_access_key.estuary.secret
   sensitive   = true
 }
+ 
+ output "s3_data_drop_bucket_name" {
+   description = "The name of the S3 bucket created for dropping files."
+   value       = aws_s3_bucket.data_drop.bucket
+ }
